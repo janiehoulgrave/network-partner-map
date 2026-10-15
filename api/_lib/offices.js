@@ -5,7 +5,8 @@ import { fetchPage, segments, clean, fmtPhone, PHONE_RE, stateAbbr } from "./htm
 
 export const OFFICES_URL = "https://www.compass.com/about/offices/";
 let cache = { at: 0, list: [] };
-export let lastRun = { status: null, bytes: 0, byHeading: 0, byText: 0, at: null };
+export let lastRun = { status: null, bytes: 0, byHeading: 0, byText: 0, byData: 0, at: null };
+let lastHtml = "";
 
 const CSZ = /^(.*?)[,\s]+([A-Za-z]{2})\.?,?\s+(\d{5})(?:-\d{4})?$/;                 // "Chevy Chase MD 20815"
 const FULL = /^(\d[^,]*(?:,\s*[^,]+)*?),\s*([^,]+?),?\s+([A-Za-z]{2})\.?,?\s+(\d{5})(?:-\d{4})?$/; // "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815"
@@ -71,10 +72,51 @@ export function parseByText(html) {
   return list;
 }
 
+/** Reader 3: office records embedded as data in the page's scripts (JSON or escaped JSON). */
+export function parseByData(html) {
+  const raw = String(html).replace(/\\"/g, '"').replace(/\\u0026/g, "&").replace(/\\u002F/gi, "/");
+  const list = [];
+  const KEY = (names) => new RegExp('"(?:' + names + ')"\\s*:\\s*"([^"]{1,140})"', "gi");
+  // Pick the matching field closest to this record's ZIP, preferring the side the field usually sits on.
+  const pick = (win, center, names, prefer) => {
+    let before = null, after = null;
+    for (const m of win.matchAll(KEY(names))) {
+      if (m.index < center) before = m[1];
+      else if (after === null) after = m[1];
+    }
+    const v = prefer === "after" ? (after ?? before) : (before ?? after);
+    return v ? clean(v) : "";
+  };
+  const zips = [...raw.matchAll(/"(?:zip|zipCode|zipcode|postalCode|postal_code|zip_code)"\s*:\s*"(\d{5})(?:-\d{4})?"/gi)];
+  zips.forEach((z, i) => {
+    const from = Math.max(i ? zips[i - 1].index + zips[i - 1][0].length : 0, z.index - 1200);
+    const to = Math.min(i < zips.length - 1 ? zips[i + 1].index : raw.length, z.index + 1200);
+    const win = raw.slice(from, to), c = z.index - from;
+    let street = pick(win, c, "address1|addressLine1|address_line_1|addressLineOne|street|streetAddress|street1|line1|address", "before");
+    const street2 = pick(win, c, "address2|addressLine2|address_line_2|addressLineTwo|street2|line2|suite|unit", "before");
+    const city = pick(win, c, "city|addressLocality|locality|cityName", "before");
+    const st = stateAbbr(pick(win, c, "state|stateCode|state_code|addressRegion|region|stateAbbreviation", "before"));
+    const phone = pick(win, c, "phone|phoneNumber|phone_number|telephone|officePhone|mainPhone|phoneMain", "after");
+    let name = pick(win, c, "officeName|displayName|name|title|label", "before");
+    if (!/^\d/.test(street) || !city || !st) return;
+    if (street2 && !street.includes(street2)) street = `${street}, ${street2}`;
+    if (!name || /^\d/.test(name) || name.length > 80) name = `${city} Office`;
+    list.push(make(name, street, city, st, z[1], PHONE_RE.test(phone) ? phone : ""));
+  });
+  return list;
+}
+
+/** A short raw excerpt around some text, for troubleshooting (public page content only). */
+export function peek(term) {
+  if (!lastHtml || !term) return "";
+  const i = lastHtml.indexOf(term);
+  return i < 0 ? "(not found)" : lastHtml.slice(Math.max(0, i - 1500), i + 1500);
+}
+
 export function parseOffices(html) {
-  const a = parseByHeading(html), b = parseByText(html);
-  lastRun.byHeading = a.length; lastRun.byText = b.length;
-  const best = a.length >= b.length ? a : b;
+  const a = parseByHeading(html), b = parseByText(html), d = parseByData(html);
+  lastRun.byHeading = a.length; lastRun.byText = b.length; lastRun.byData = d.length;
+  const best = [a, b, d].sort((x, y) => y.length - x.length)[0];
   const seen = new Set();
   return best.filter((o) => { const k = o.address.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 }
@@ -85,6 +127,7 @@ export async function getOffices() {
   try { r = await fetchPage(OFFICES_URL, 20000); } catch (e) { r = { ok: false, status: "timeout", html: "" }; }
   lastRun = { ...lastRun, status: r.status, bytes: (r.html || "").length, at: new Date().toISOString() };
   if (!r.ok) return cache.list;
+  lastHtml = r.html;
   const list = parseOffices(r.html);
   if (list.length) cache = { at: Date.now(), list };
   return cache.list;

@@ -61,4 +61,18 @@ assert.equal(divs[1].name, "Compass Richmond Office");
 assert.equal(divs[1].address, "1801 Libbie Ave, Suite 102, Richmond, VA 23226");
 assert.equal(divs[1].phone, "804-555-0101");
 
+// Office records embedded as page data (plain JSON, and escaped JSON inside a script string)
+const jsonPage = `<script id="__NEXT_DATA__" type="application/json">{"props":{"offices":[{"id":1,"name":"Chevy Chase","address":{"address1":"5471 Wisconsin Ave","address2":"Suite 300","city":"Chevy Chase","state":"MD","zipCode":"20815"},"phone":"301.298.1001"},{"id":2,"name":"Armonk","address":{"address1":"387 Main Street","city":"Armonk","state":"NY","zipCode":"10504"},"phone":"914.228.2656"}]}}</script>`;
+const dj = parseOffices(jsonPage);
+assert.equal(dj.length, 2);
+assert.equal(dj[0].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
+assert.equal(dj[0].phone, "301-298-1001");
+assert.equal(dj[1].name, "Compass Armonk");
+const escPage = `<script>self.__next_f.push([1,"{\\"officeName\\":\\"Chevy Chase Office\\",\\"streetAddress\\":\\"5471 Wisconsin Ave, Suite 300\\",\\"city\\":\\"Chevy Chase\\",\\"state\\":\\"Maryland\\",\\"postalCode\\":\\"20815\\",\\"phoneNumber\\":\\"(301) 298-1001\\"}"])</script>`;
+const de = parseOffices(escPage);
+assert.equal(de.length, 1);
+assert.equal(de[0].name, "Compass Chevy Chase Office");
+assert.equal(de[0].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
+assert.equal(de[0].phone, "301-298-1001");
+
 console.log("All reader checks passed:", JSON.stringify(a));
