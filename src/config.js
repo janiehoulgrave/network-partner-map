@@ -5,12 +5,12 @@
 // These values are safe to publish; access is protected by the Firestore rules.
 // ─────────────────────────────────────────────────────────────
 export const firebaseConfig = {
-  apiKey: "AIzaSyB1Homchyphi_-oNu_FHcOBtVd0-KtjL0w",
+  apiKey: "PASTE_API_KEY",
   authDomain: "signaturestudio-f49f4.firebaseapp.com",
   projectId: "signaturestudio-f49f4",
   storageBucket: "signaturestudio-f49f4.appspot.com",
-  messagingSenderId: "249570654167",
-  appId: "1:249570654167:web:12912e6b9aa2967479bd92",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID",
 };
 
 // Firestore collection for this app (each agent's partners live under networkMap/{their user id}/partners)

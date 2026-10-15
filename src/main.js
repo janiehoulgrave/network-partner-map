@@ -31,16 +31,23 @@ async function api(path){
 
 /* ---------- Compass office directory (matched by office phone) ---------- */
 const digits = s => String(s||"").replace(/\D/g,"").slice(-10);
-let OFFICES = new Map();  // phone digits -> [offices]
-let officesLoaded = null;
+let OFFICES = new Map();       // phone digits -> [offices]
+let OFFICES_BY_CITY = new Map(); // "city|ST" -> [offices]
+let officesLoaded = null, officesCount = -1;
 function loadOffices(){
   if (!officesLoaded) officesLoaded = fetch("/api/offices").then(r=>r.ok?r.json():{offices:[]}).then(j=>{
-    OFFICES = new Map();
-    (j.offices||[]).forEach(o=>{ const k=digits(o.phone); if(k.length===10){ if(!OFFICES.has(k)) OFFICES.set(k,[]); OFFICES.get(k).push(o); } });
-  }).catch(()=>{ officesLoaded=null; });
+    OFFICES = new Map(); OFFICES_BY_CITY = new Map();
+    const list = j.offices||[]; officesCount = list.length;
+    list.forEach(o=>{
+      const k=digits(o.phone); if(k.length===10){ if(!OFFICES.has(k)) OFFICES.set(k,[]); OFFICES.get(k).push(o); }
+      const c=(o.city||"").toLowerCase()+"|"+(o.state||""); if(!OFFICES_BY_CITY.has(c)) OFFICES_BY_CITY.set(c,[]); OFFICES_BY_CITY.get(c).push(o);
+    });
+    if (!list.length) officesLoaded = null;   // try again next time
+  }).catch(()=>{ officesLoaded=null; officesCount=0; });
   return officesLoaded;
 }
 const officesFor = phone => OFFICES.get(digits(phone)) || [];
+const officesIn = (city, st) => OFFICES_BY_CITY.get(String(city||"").trim().toLowerCase()+"|"+st) || [];
 
 /* ---------- state ---------- */
 let contacts = [];
@@ -490,7 +497,14 @@ function openEditor(c,isNew=false){
       $("#officePick").onchange=e=>{ const o=list[+e.target.value]; if(o){ useOffice(o); } };
     } else {
       if (a.value===autoAddr) a.value=""; autoAddr=null; officeName="";
-      n.textContent = (!nonC && $("#e-office").value.trim() && OFFICES.size)?"No Compass office matches this phone number. You can type the address yourself.":"";
+      const near = nonC ? [] : officesIn($("#e-city").value, $("#e-state").value);
+      if (!nonC && !a.value.trim() && near.length){
+        n.innerHTML = `<span>Their office phone isn't a Compass main line. Compass ${near.length===1?"has an office":"has "+near.length+" offices"} in ${esc($("#e-city").value.trim())}:</span>
+          <span style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${near.map((o,i)=>`<button type="button" class="btn sm" data-near="${i}" style="justify-content:flex-start;white-space:normal;text-align:left">Use ${esc(o.name)}: ${esc(o.address)}</button>`).join("")}</span>`;
+        n.querySelectorAll("[data-near]").forEach(b=>b.onclick=()=>{ const o=near[+b.dataset.near]; autoAddr=null; a.value=o.address; officeName=o.name; n.innerHTML=`<span class="okmsg">Using ${esc(o.name)}. The pin goes on this office.</span>`; geoNote(); });
+      } else if (!nonC && $("#e-office").value.trim() && !a.value.trim()){
+        n.textContent = officesCount===0 ? "The Compass office list didn't load, so type the office address yourself if you'd like the pin on it." : "No Compass office matches this phone number. You can type the address yourself.";
+      } else n.textContent = "";
     }
     geoNote();
   };
@@ -500,7 +514,7 @@ function openEditor(c,isNew=false){
     g.innerHTML = addr ? `<span class="okmsg">The pin goes on the office address.</span>`
       : (city&&st) ? `<span class="okmsg">The pin goes in ${esc(city)}, ${esc(st)}.</span>` : "";
   };
-  $("#e-city").oninput=geoNote; $("#e-state").onchange=geoNote; $("#e-oaddr").oninput=geoNote; $("#e-office").oninput=officeNote;
+  $("#e-city").oninput=()=>{ officeNote(); }; $("#e-state").onchange=()=>{ officeNote(); }; $("#e-oaddr").oninput=geoNote; $("#e-office").oninput=officeNote;
   officeNote(); loadOffices().then(()=>{ if($("#officeNote")) officeNote(); });
 
   $("#e-name").oninput=()=>{ if(!photo) $("#pv").textContent=initials($("#e-name").value); };

@@ -51,4 +51,14 @@ assert.deepEqual(offices[0], { name: "Compass Chevy Chase Office", address: "547
 assert.equal(offices[1].address, "33 Atlantic Ave, Bethany Beach, DE 19930");
 assert.equal(offices[2].phone, "914-228-2656");
 
+// Office directory with no headings at all (plain divs), and with one-line addresses
+const divs = parseOffices(`<div class="office"><div>Chevy Chase Office</div><div>5471 Wisconsin Ave</div><div>Suite 300</div><div>Chevy Chase, MD 20815</div><div>301.298.1001</div></div>
+<div class="office"><span>Richmond Office</span><span>1801 Libbie Ave, Suite 102, Richmond, VA 23226</span><span>(804) 555-0101</span></div>`);
+assert.equal(divs.length, 2);
+assert.equal(divs[0].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
+assert.equal(divs[0].phone, "301-298-1001");
+assert.equal(divs[1].name, "Compass Richmond Office");
+assert.equal(divs[1].address, "1801 Libbie Ave, Suite 102, Richmond, VA 23226");
+assert.equal(divs[1].phone, "804-555-0101");
+
 console.log("All reader checks passed:", JSON.stringify(a));
