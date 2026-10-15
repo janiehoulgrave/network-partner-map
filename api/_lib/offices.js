@@ -5,7 +5,7 @@ import { fetchPage, segments, clean, fmtPhone, PHONE_RE, stateAbbr } from "./htm
 
 export const OFFICES_URL = "https://www.compass.com/about/offices/";
 let cache = { at: 0, list: [] };
-export let lastRun = { status: null, bytes: 0, byHeading: 0, byText: 0, byData: 0, at: null };
+export let lastRun = { status: null, bytes: 0, byRecords: 0, byHeading: 0, byText: 0, byData: 0, at: null };
 let lastHtml = "";
 
 const CSZ = /^(.*?)[,\s]+([A-Za-z]{2})\.?,?\s+(\d{5})(?:-\d{4})?$/;                 // "Chevy Chase MD 20815"
@@ -18,6 +18,38 @@ const make = (name, street, city, st, zip, phone) => ({
   phone: phone ? fmtPhone(phone) : "",
   city, state: st.toUpperCase(), zip,
 });
+
+/** Reader 0 (preferred): Compass's structured office records,
+ *  {"@type":"LocalBusiness","name":"Chevy Chase Office","telephone":"301.298.1001","address":{"@type":"PostalAddress",...}}.
+ *  Each record is read as a whole, so a phone can never be paired with the wrong office. */
+export function parseByRecords(html) {
+  const raw = String(html).replace(/\\"/g, '"');
+  const list = [];
+  const re = /"@type"\s*:\s*"(?:LocalBusiness|RealEstateAgent|Organization|Place|Office)"/g;
+  let m;
+  while ((m = re.exec(raw))) {
+    const start = raw.lastIndexOf("{", m.index);
+    if (start < 0) continue;
+    // find the matching closing brace (strings respected)
+    let depth = 0, inStr = false, esc = false, end = -1;
+    for (let i = start; i < raw.length && i < start + 6000; i++) {
+      const ch = raw[i];
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end < 0) continue;
+    let o; try { o = JSON.parse(raw.slice(start, end + 1)); } catch (e) { continue; }
+    re.lastIndex = end;
+    const a = o && o.address;
+    if (!a || typeof a !== "object") continue;
+    const street = clean(a.streetAddress || ""), city = clean(a.addressLocality || ""), st = stateAbbr(a.addressRegion || ""), zip = (String(a.postalCode || "").match(/\d{5}/) || [])[0];
+    if (!o.name || !street || !city || !st || !zip) continue;
+    list.push(make(clean(o.name), street, city, st, zip, PHONE_RE.test(o.telephone || "") ? o.telephone : ""));
+  }
+  return list;
+}
 
 /** Reader 1: each office is a heading (h2–h4) followed by its address lines and phone. */
 export function parseByHeading(html) {
@@ -130,9 +162,14 @@ export function peek(term) {
 }
 
 export function parseOffices(html) {
-  const a = parseByHeading(html), b = parseByText(html), d = parseByData(html);
-  lastRun.byHeading = a.length; lastRun.byText = b.length; lastRun.byData = d.length;
-  const best = [a, b, d].sort((x, y) => y.length - x.length)[0];
+  const r = parseByRecords(html);
+  lastRun.byRecords = r.length;
+  let best = r;
+  if (r.length < 20) {   // structured records missing: fall back to the other readers
+    const a = parseByHeading(html), b = parseByText(html), d = parseByData(html);
+    lastRun.byHeading = a.length; lastRun.byText = b.length; lastRun.byData = d.length;
+    best = [r, a, b, d].sort((x, y) => y.length - x.length)[0];
+  }
   const seen = new Set();
   return best.filter((o) => { const k = o.address.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 }

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", offices.length ? "public, s-maxage=604800, stale-while-revalidate=86400" : "no-store");
   res.status(200).json({
     count: offices.length,
-    check: { compassStatus: lastRun.status, pageSize: lastRun.bytes, foundByHeadings: lastRun.byHeading, foundByText: lastRun.byText, foundByData: lastRun.byData, readAt: lastRun.at },
+    check: { compassStatus: lastRun.status, pageSize: lastRun.bytes, foundByRecords: lastRun.byRecords, foundByHeadings: lastRun.byHeading, foundByText: lastRun.byText, foundByData: lastRun.byData, readAt: lastRun.at },
     offices,
   });
 }

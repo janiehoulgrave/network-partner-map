@@ -87,4 +87,16 @@ assert.equal(phoneFirst[1].phone, "301-298-1001");
 assert.equal(phoneFirst[1].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
 assert.equal(phoneFirst[2].phone, "410-220-5745");
 
+// The real Compass format (copied from the live page): LocalBusiness records, phone before address
+const real = '{"@type":"LocalBusiness","name":"Bethesda Office ","telephone":"301.304.8444","url":"https://www.compass.com/agents/offices/7200/","address":{"@type":"PostalAddress","streetAddress":"7200 Wisconsin Avenue Suite 100 ","addressLocality":"Bethesda","addressRegion":"MD","postalCode":"20814"}},{"@type":"LocalBusiness","name":"Capitol Hill Office","telephone":"202.545.6900","url":"https://www.compass.com/agents/offices/660/","address":{"@type":"PostalAddress","streetAddress":"660 Pennsylvania Ave SE, Suite 401","addressLocality":"Washington","addressRegion":"DC","postalCode":"20003"}},{"@type":"LocalBusiness","name":"Chevy Chase Office","telephone":"301.298.1001","url":"https://www.compass.com/agents/offices/5471/","address":{"@type":"PostalAddress","streetAddress":"5471 Wisconsin Ave, Suite 300","addressLocality":"Chevy Chase","addressRegion":"MD","postalCode":"20815"}},{"@type":"LocalBusiness","name":"Logan Circle Office","telephone":"202.386.6330"}';
+const rec = parseOffices(`<script type="application/ld+json">[${real}]</script>`);
+const byName = Object.fromEntries(rec.map((o) => [o.name, o]));
+assert.equal(byName["Compass Capitol Hill Office"].phone, "202-545-6900");
+assert.equal(byName["Compass Chevy Chase Office"].phone, "301-298-1001");
+assert.equal(byName["Compass Chevy Chase Office"].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
+assert.equal(byName["Compass Bethesda Office"].address, "7200 Wisconsin Avenue Suite 100, Bethesda, MD 20814");
+// same records escaped inside a script string
+const recEsc = parseOffices(`<script>x="[${real.replace(/"/g, '\\"')}]"</script>`);
+assert.equal(recEsc.find((o) => o.name === "Compass Chevy Chase Office").phone, "301-298-1001");
+
 console.log("All reader checks passed:", JSON.stringify(a));
