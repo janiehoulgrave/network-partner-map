@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────────────────────
 // Network Partner Map settings
-// Paste your Firebase web config below (same project as SignatureStudio).
+// Firebase web config (same project as SignatureStudio).
 // Firebase console → Project settings → General → Your apps → Web app → "SDK setup and configuration" → Config.
 // These values are safe to publish; access is protected by the Firestore rules.
 // ─────────────────────────────────────────────────────────────
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
+  apiKey: "AIzaSyB1Homchyphi_-oNu_FHcOBtVd0-KtjL0w",
   authDomain: "signaturestudio-f49f4.firebaseapp.com",
   projectId: "signaturestudio-f49f4",
-  storageBucket: "signaturestudio-f49f4.appspot.com",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID",
+  storageBucket: "signaturestudio-f49f4.firebasestorage.app",
+  messagingSenderId: "249570654167",
+  appId: "1:249570654167:web:12912e6b9aa2967479bd92",
+  measurementId: "G-SGR3W70EWR",
 };
 
 // Firestore collection for this app (each agent's partners live under networkMap/{their user id}/partners)

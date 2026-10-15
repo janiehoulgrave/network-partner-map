@@ -666,7 +666,20 @@ $("#signInBtn").onclick=async()=>{
   const provider=new GoogleAuthProvider();
   provider.setCustomParameters({hd:ALLOWED_DOMAIN, prompt:"select_account"});
   try { await signInWithPopup(auth, provider); }
-  catch(e){ if (e && e.code!=="auth/popup-closed-by-user" && e.code!=="auth/cancelled-popup-request") gateMsg.textContent = e.code==="auth/popup-blocked" ? "Your browser blocked the sign-in window. Allow pop-ups for this site and try again." : "Sign-in didn't go through. Try again."; }
+  catch(e){
+    const code = (e && e.code) || "unknown";
+    if (code==="auth/popup-closed-by-user" || code==="auth/cancelled-popup-request") return;
+    const why = {
+      "auth/popup-blocked": "Your browser blocked the sign-in window. Allow pop-ups for this site and try again.",
+      "auth/unauthorized-domain": "This web address isn't approved for sign-in yet. Add it under Firebase › Authentication › Settings › Authorized domains.",
+      "auth/invalid-api-key": "The Firebase settings in src/config.js are missing or incorrect.",
+      "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "The Firebase settings in src/config.js are missing or incorrect.",
+      "auth/operation-not-allowed": "Google sign-in is turned off in Firebase › Authentication › Sign-in method.",
+      "auth/network-request-failed": "Couldn't reach Google. Check your connection and try again.",
+    }[code] || "Sign-in didn't go through. Try again.";
+    gateMsg.textContent = `${why} (${code})`;
+    console.error(e);
+  }
 };
 $("#signOutBtn").onclick=()=>signOut(auth);
 $("#userChip").onclick=()=>{ const m=$("#userMenu"); m.hidden=!m.hidden; };
