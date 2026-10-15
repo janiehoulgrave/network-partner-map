@@ -85,18 +85,34 @@ export function parseByData(html) {
       else if (after === null) after = m[1];
     }
     const v = prefer === "after" ? (after ?? before) : (before ?? after);
+    if (prefer === "nearest") {
+      let best = null, bd = Infinity;
+      for (const m of win.matchAll(KEY(names))) { const d = Math.abs(m.index - center); if (d < bd) { bd = d; best = m[1]; } }
+      return best ? clean(best) : "";
+    }
     return v ? clean(v) : "";
   };
   const zips = [...raw.matchAll(/"(?:zip|zipCode|zipcode|postalCode|postal_code|zip_code)"\s*:\s*"(\d{5})(?:-\d{4})?"/gi)];
+  if (!zips.length) return list;
+  // When a field appears exactly once per office, pair it with the offices in order. This is exact
+  // no matter whether the field comes before or after the ZIP inside each record.
+  const lo = Math.max(0, zips[0].index - 1500), hi = zips[zips.length - 1].index + 1500, span = raw.slice(lo, hi);
+  const inOrder = (names, test) => {
+    const vals = [...span.matchAll(KEY(names))].map((m) => clean(m[1])).filter(test || (() => true));
+    return vals.length === zips.length ? vals : null;
+  };
+  const phonesInOrder = inOrder("phone|phoneNumber|phone_number|telephone|officePhone|mainPhone|phoneMain", (v) => PHONE_RE.test(v));
+  const streetsInOrder = inOrder("address1|addressLine1|address_line_1|addressLineOne|street|streetAddress|street1|line1", (v) => /^\d/.test(v));
+  const citiesInOrder = inOrder("city|addressLocality|locality|cityName");
   zips.forEach((z, i) => {
     const from = Math.max(i ? zips[i - 1].index + zips[i - 1][0].length : 0, z.index - 1200);
     const to = Math.min(i < zips.length - 1 ? zips[i + 1].index : raw.length, z.index + 1200);
     const win = raw.slice(from, to), c = z.index - from;
-    let street = pick(win, c, "address1|addressLine1|address_line_1|addressLineOne|street|streetAddress|street1|line1|address", "before");
+    let street = streetsInOrder ? streetsInOrder[i] : pick(win, c, "address1|addressLine1|address_line_1|addressLineOne|street|streetAddress|street1|line1|address", "before");
     const street2 = pick(win, c, "address2|addressLine2|address_line_2|addressLineTwo|street2|line2|suite|unit", "before");
-    const city = pick(win, c, "city|addressLocality|locality|cityName", "before");
+    const city = citiesInOrder ? citiesInOrder[i] : pick(win, c, "city|addressLocality|locality|cityName", "before");
     const st = stateAbbr(pick(win, c, "state|stateCode|state_code|addressRegion|region|stateAbbreviation", "before"));
-    const phone = pick(win, c, "phone|phoneNumber|phone_number|telephone|officePhone|mainPhone|phoneMain", "after");
+    const phone = phonesInOrder ? phonesInOrder[i] : pick(win, c, "phone|phoneNumber|phone_number|telephone|officePhone|mainPhone|phoneMain", "nearest");
     let name = pick(win, c, "officeName|displayName|name|title|label", "before");
     if (!/^\d/.test(street) || !city || !st) return;
     if (street2 && !street.includes(street2)) street = `${street}, ${street2}`;

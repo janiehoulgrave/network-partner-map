@@ -75,4 +75,16 @@ assert.equal(de[0].name, "Compass Chevy Chase Office");
 assert.equal(de[0].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
 assert.equal(de[0].phone, "301-298-1001");
 
+// Phone listed BEFORE the address in each record (the layout that mismatched Capitol Hill / Chevy Chase)
+const phoneFirst = parseOffices(`<script>{"offices":[
+{"name":"Capitol Hill Office","phone":"202.545.6900","address1":"660 Pennsylvania Ave SE, Suite 401","city":"Washington","state":"DC","zip":"20003"},
+{"name":"Chevy Chase Office","phone":"301.298.1001","address1":"5471 Wisconsin Ave, Suite 300","city":"Chevy Chase","state":"MD","zip":"20815"},
+{"name":"Ellicott City Office","phone":"410.220.5745","address1":"10050 Baltimore National Pike","city":"Ellicott City","state":"MD","zip":"21042"}]}</script>`);
+assert.equal(phoneFirst.length, 3);
+assert.equal(phoneFirst[0].phone, "202-545-6900");
+assert.equal(phoneFirst[1].name, "Compass Chevy Chase Office");
+assert.equal(phoneFirst[1].phone, "301-298-1001");
+assert.equal(phoneFirst[1].address, "5471 Wisconsin Ave, Suite 300, Chevy Chase, MD 20815");
+assert.equal(phoneFirst[2].phone, "410-220-5745");
+
 console.log("All reader checks passed:", JSON.stringify(a));
