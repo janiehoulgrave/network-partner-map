@@ -501,9 +501,11 @@ function openEditor(c,isNew=false){
       if (a.value===autoAddr) a.value=""; autoAddr=null; officeName="";
       const near = nonC ? [] : officesIn($("#e-city").value, $("#e-state").value);
       if (!nonC && !a.value.trim() && near.length){
-        n.innerHTML = `<span>Their office phone isn't a Compass main line. Compass ${near.length===1?"has an office":"has "+near.length+" offices"} in ${esc($("#e-city").value.trim())}:</span>
-          <span style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${near.map((o,i)=>`<button type="button" class="btn sm" data-near="${i}" style="justify-content:flex-start;white-space:normal;text-align:left">Use ${esc(o.name)}: ${esc(o.address)}</button>`).join("")}</span>`;
-        n.querySelectorAll("[data-near]").forEach(b=>b.onclick=()=>{ const o=near[+b.dataset.near]; autoAddr=null; a.value=o.address; officeName=o.name; n.innerHTML=`<span class="okmsg">Using ${esc(o.name)}. The pin goes on this office.</span>`; geoNote(); });
+        const why = $("#e-office").value.trim() ? "Their office phone doesn't match a Compass office." : "No office phone to match.";
+        n.innerHTML = `<div class="suggest"><div class="suggest-head"><b>Not matched.</b> ${why} Is ${near.length===1?"this":"one of these"} their office?</div>
+          ${near.map((o,i)=>`<div class="suggest-row"><span><b>${esc(o.name)}</b><br>${esc(o.address)}</span><button type="button" class="btn sm" data-near="${i}">Yes, use this</button></div>`).join("")}
+          <div class="suggest-foot">Not sure? Skip it and the pin goes in ${esc($("#e-city").value.trim())}.</div></div>`;
+        n.querySelectorAll("[data-near]").forEach(b=>b.onclick=()=>{ const o=near[+b.dataset.near]; autoAddr=null; a.value=o.address; officeName=o.name; n.innerHTML=`<span class="okmsg">Using ${esc(o.name)}, chosen by you. The pin goes on this office.</span>`; geoNote(); });
       } else if (!nonC && $("#e-office").value.trim() && !a.value.trim()){
         n.textContent = officesCount===0 ? "The Compass office list didn't load, so type the office address yourself if you'd like the pin on it." : "No Compass office matches this phone number. You can type the address yourself.";
       } else n.textContent = "";

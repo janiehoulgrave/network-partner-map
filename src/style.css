@@ -264,3 +264,11 @@ button.user:hover{background:var(--surface-2)}
 .wl-dots{display:flex;gap:6px;align-items:center}
 .wl-dot{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--line);cursor:pointer}
 .wl-dot.on{background:var(--accent);width:20px;border-radius:999px}
+
+/* unconfirmed office suggestion */
+.suggest{border:1px dashed var(--warn);background:color-mix(in srgb,var(--warn) 7%,var(--surface));border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;color:var(--ink);font-weight:400;font-size:13px}
+.suggest-head b{color:var(--warn)}
+.suggest-row{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.suggest-row span{min-width:0;line-height:1.4}
+.suggest-row .btn{flex:none}
+.suggest-foot{color:var(--muted);font-size:12px}
