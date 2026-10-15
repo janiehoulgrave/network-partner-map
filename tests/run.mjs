@@ -99,4 +99,17 @@ assert.equal(byName["Compass Bethesda Office"].address, "7200 Wisconsin Avenue S
 const recEsc = parseOffices(`<script>x="[${real.replace(/"/g, '\\"')}]"</script>`);
 assert.equal(recEsc.find((o) => o.name === "Compass Chevy Chase Office").phone, "301-298-1001");
 
+// Title without a city ("Whitney St. Clair, Real Estate Agent - Compass") and a "Compass Agents" breadcrumb
+const w = parseAgent(`<html><head><title>Whitney St. Clair, Real Estate Agent - Compass</title></head><body>
+<h1>Whitney St. Clair</h1><div>REALTOR® | DRE# 689821000</div><a href="mailto:whitney.stclair@compass.com">whitney.stclair@compass.com</a>
+<div>M: 949-397-7070</div><h2>Specialties</h2><div>Buyer's Agent, Listing Agent, Staging</div><h2>Client Testimonials</h2>
+<footer><a>Compass</a><a>Compass Agents</a><a>Arizona</a><a>Scottsdale</a><span>Whitney St. Clair</span></footer></body></html>`);
+assert.equal(w.name, "Whitney St. Clair");
+assert.equal(w.title, "REALTOR® | DRE# 689821000");
+assert.equal(w.mobile, "949-397-7070");
+assert.equal(w.office, "");
+assert.equal(w.state, "AZ");
+assert.equal(w.city, "Scottsdale");
+assert.deepEqual(w.specialties, ["Buyer's Agent", "Listing Agent", "Staging"]);
+
 console.log("All reader checks passed:", JSON.stringify(a));

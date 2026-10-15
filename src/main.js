@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import GEO from "./us-states.json";
 import { firebaseConfig, COLLECTION, ALLOWED_DOMAIN, CRM_TAG } from "./config.js";
 import "./style.css";
@@ -342,13 +342,14 @@ $("#allBtn").onclick=showAll;
 
 /* ---------- add / edit ---------- */
 const scrim=$("#scrim"), modal=$("#modal");
-function closeModal(){ scrim.hidden=true; modal.innerHTML=""; }
+function closeModal(){ scrim.hidden=true; modal.innerHTML=""; modal.classList.remove("welcome"); }
 scrim.addEventListener("click",e=>{ if(e.target===scrim) closeModal(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!scrim.hidden) closeModal(); });
 $("#addBtn").onclick=()=>openAdd();
 
-function slugFrom(url){ const m=String(url).match(/compass\.com\/agents\/([a-z0-9-]+)/i); return m?m[1].toLowerCase():null; }
-const nameFromSlug = slug => slug.split("-").filter(w=>w && !/^\d+$/.test(w)).map(w=>w[0].toUpperCase()+w.slice(1)).join(" ");
+/* Compass agent links are case-sensitive (e.g. /agents/Whitney-st-clair/), so keep the slug exactly as pasted */
+function slugFrom(url){ const m=String(url).match(/compass\.com\/agents\/([a-z0-9.\-]+)/i); return m && m[1].toLowerCase()!=="offices" && m[1].toLowerCase()!=="locations" ? m[1] : null; }
+const nameFromSlug = slug => slug.split("-").filter(w=>w && !/^\d+$/.test(w)).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(" ");
 function openAdd(){
   modal.innerHTML = `
    <div class="modal-head"><div><h2>Add a partner</h2><p>Paste their Compass agent page and we'll fill in the rest.</p></div><button class="x" aria-label="Close" id="mx">✕</button></div>
@@ -368,13 +369,14 @@ function openAdd(){
     if (busy) return;
     const url=$("#link").value.trim(), slug=slugFrom(url), st=$("#readStatus");
     if(!slug){ st.innerHTML=`<span class="err">That doesn't look like a Compass agent page. It should look like compass.com/agents/first-last/</span>`; return; }
-    const dup = contacts.find(c=>slugFrom(c.url)===slug);
+    const dup = contacts.find(c=>(slugFrom(c.url)||"").toLowerCase()===slug.toLowerCase());
     if (dup){ st.innerHTML=`<span class="err">${esc(dup.name)} is already in your network.</span> <button class="btn sm" id="openDup">Show on map</button>`; $("#openDup").onclick=()=>{closeModal();openCard(dup.id,true);}; return; }
     busy=true; $("#readBtn").disabled=true;
     st.innerHTML=`<div class="loading"><span class="spin"></span>Reading the agent page…</div>`;
-    const canonical = `https://www.compass.com/agents/${slug}/`;
+    let canonical = `https://www.compass.com/agents/${slug}/`;
     try {
       const r = await api("/api/agent?url="+encodeURIComponent(canonical));
+      if (r.url) canonical = r.url;
       const draft = {name:r.name||nameFromSlug(slug), title:r.title||"", photo:r.photo||null, email:r.email||"", mobile:r.mobile||"", office:r.office||"",
         city:r.city||"", state:r.state||"", specialties:r.specialties||[], languages:r.languages||[], url:canonical,
         _found:true, _pulled:{specialties:r.specialties||[], languages:r.languages||[]}};
@@ -640,6 +642,60 @@ function openExport(prefer){
 $("#exportBtn").onclick = () => openExport("list");
 $("#sideExport").onclick = () => openExport("list");
 
+/* ---------- welcome walkthrough ---------- */
+const ICON = {
+  map:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12l12-5 12 5 12-5v29l-12 5-12-5-12 5z"/><path d="M18 7v29M30 12v29"/><circle cx="36" cy="20" r="3.2" fill="currentColor" stroke="none"/></svg>',
+  link:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 28l8-8"/><path d="M22 14l3-3a8 8 0 0 1 12 12l-3 3"/><path d="M26 34l-3 3a8 8 0 0 1-12-12l3-3"/></svg>',
+  tag:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h16l18 18-16 16L7 23z"/><circle cx="16" cy="16" r="3"/></svg>',
+  search:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="21" cy="21" r="12"/><path d="M30 30l11 11"/><path d="M21 15v6l4 3"/></svg>',
+  export:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 6v24M15 21l9 9 9-9"/><path d="M8 32v8h32v-8"/></svg>',
+};
+const WELCOME_STEPS = [
+  {icon:"map", eyebrow:"Welcome", title:"Your referral network, on a map",
+   body:"When a client is moving out of your market, see in seconds who you know there, how to reach them and why you trust them. No more digging through your phone, old emails or business cards."},
+  {icon:"link", eyebrow:"Step 1", title:"Add partners in one paste",
+   body:"Paste a Compass agent's profile link and their photo, phone, email, office, specialties and languages fill in for you. Check the details, then add them to your map.",
+   note:"Partners at other brokerages? Add them by hand. They show as dark grey pins."},
+  {icon:"tag", eyebrow:"Step 2", title:"Make it yours",
+   body:"Add notes on how you met and what they're great at, plus tags for specialties and the networking groups you share.",
+   note:"Your network, notes and tags are private to your account."},
+  {icon:"search", eyebrow:"Step 3", title:"Find the right person fast",
+   body:"Search a city, state or ZIP to see your partners sorted by distance. Search a name, tag or note, like “relocation” or “BNI”, to see matches newest first.",
+   note:"Shaded states show where you have coverage, so gaps are easy to spot."},
+  {icon:"export", eyebrow:"Step 4", title:"Take it to your CRM",
+   body:"Export your whole network, or just a search, as a CSV that's ready to import into the Compass CRM, tags included."},
+];
+function openWelcome(onDone){
+  let i = 0;
+  const render = () => {
+    const s = WELCOME_STEPS[i], last = i===WELCOME_STEPS.length-1;
+    modal.classList.add("welcome");
+    modal.innerHTML = `
+      <div class="wl-body">
+        <button class="x wl-skip" id="wlSkip" aria-label="Close">${last?"✕":"Skip"}</button>
+        <div class="wl-icon" aria-hidden="true">${ICON[s.icon]}</div>
+        <div class="wl-eyebrow">${s.eyebrow}</div>
+        <h2>${s.title}</h2>
+        <p>${s.body}</p>
+        ${s.note?`<p class="wl-note">${s.note}</p>`:""}
+      </div>
+      <div class="modal-foot wl-foot">
+        <div class="wl-dots" role="tablist" aria-label="Walkthrough steps">${WELCOME_STEPS.map((_,j)=>`<button class="wl-dot${j===i?" on":""}" data-j="${j}" aria-label="Step ${j+1}" aria-current="${j===i}"></button>`).join("")}</div>
+        <span class="spacer"></span>
+        ${i>0?`<button class="btn" id="wlBack">Back</button>`:""}
+        <button class="btn primary" id="wlNext">${last?(contacts.length?"Start exploring":"Add your first partner"):"Next"}</button>
+      </div>`;
+    scrim.hidden = false;
+    const done = (openAddAfter) => { modal.classList.remove("welcome"); closeModal(); if (onDone) onDone(); if (openAddAfter) openAdd(); };
+    $("#wlSkip").onclick = () => done(false);
+    $("#wlNext").onclick = () => { if (last) done(!contacts.length); else { i++; render(); } };
+    const b = $("#wlBack"); if (b) b.onclick = () => { i--; render(); };
+    modal.querySelectorAll(".wl-dot").forEach(d => d.onclick = () => { i = +d.dataset.j; render(); });
+    $("#wlNext").focus();
+  };
+  render();
+}
+
 /* ---------- toast ---------- */
 let toastT;
 function toast(msg){
@@ -656,8 +712,23 @@ function refresh(){
   if (selectedId && !contacts.some(c=>c.id===selectedId)) closeCard();
 }
 $("#emptyAdd").onclick=()=>openAdd();
+$("#helpBtn").onclick=()=>openWelcome();
+$("#howBtn").onclick=()=>{ $("#userMenu").hidden=true; openWelcome(); };
 svg.on("click.bg",ev=>{ if(ev.target===svg.node()) closeCard(); });
 addEventListener("resize",()=>placeCard(true));
+
+/* first sign-in: show the walkthrough once per account (remembered in Firestore, so it follows them across devices) */
+async function maybeWelcome(user){
+  const key = "npm-welcomed-"+user.uid;
+  try { if (localStorage.getItem(key)) return; } catch(e){}
+  const ref = doc(db, COLLECTION, user.uid);
+  try { const s = await getDoc(ref); if (s.exists() && s.data().welcomedAt){ try{localStorage.setItem(key,"1");}catch(e){} return; } } catch(e){}
+  if (me !== user || !scrim.hidden) return;
+  openWelcome(()=>{
+    try{ localStorage.setItem(key,"1"); }catch(e){}
+    setDoc(ref, { welcomedAt: new Date().toISOString() }, { merge:true }).catch(()=>{});
+  });
+}
 
 /* sign-in gate */
 const gate=$("#gate"), gateMsg=$("#gateMsg");
@@ -700,10 +771,12 @@ onAuthStateChanged(auth, user=>{
   $("#uEmail").textContent = user.email;
   $("#uAv").textContent = initials(user.displayName || user.email);
   $("#loadingMap").hidden=false;
+  let first = true;
   unsub = onSnapshot(partnersCol(), snap=>{
     contacts = snap.docs.map(d=>prep({...d.data(), id:d.id}));
     $("#loadingMap").hidden=true;
     refresh();
+    if (first){ first=false; maybeWelcome(user); }
   }, err=>{
     $("#loadingMap").hidden=true;
     toast("Couldn't load your network. Refresh the page to try again.");

@@ -48,7 +48,7 @@ export function parseAgent(html) {
     }
     if (!out.state) {
       for (let i = segs.length - 1; i > 0; i--) {
-        if (/^agents$/i.test(segs[i - 1]) && stateAbbr(segs[i])) {
+        if (/(^|\s)agents$/i.test(segs[i - 1]) && stateAbbr(segs[i])) {
           out.state = stateAbbr(segs[i]);
           if (!out.city && segs[i + 1] && segs[i + 1] !== out.name) out.city = segs[i + 1];
           break;

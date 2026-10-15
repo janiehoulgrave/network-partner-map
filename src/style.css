@@ -248,3 +248,19 @@ button.user:hover{background:var(--surface-2)}
 .loading-map{position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted);z-index:7}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;font-size:13px;max-width:calc(100% - 32px);z-index:80;box-shadow:var(--shadow)}
 .btn:disabled{opacity:.55;cursor:default}
+
+/* welcome walkthrough */
+.modal.welcome{width:min(460px,100%)}
+.wl-body{position:relative;padding:28px 28px 8px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;overflow-y:auto;min-height:0}
+.wl-icon{width:56px;height:56px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:6px}
+.wl-icon svg{width:30px;height:30px}
+.wl-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--accent)}
+.wl-body h2{font-family:var(--f-display);font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+.wl-body p{margin:0;color:var(--muted);font-size:15px;line-height:1.55;max-width:60ch}
+.wl-body .wl-note{font-size:13px;color:var(--ink);background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-top:4px}
+.wl-skip{position:absolute;top:12px;right:12px;border:0;background:transparent;color:var(--muted);padding:4px 8px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.wl-skip:hover{background:var(--surface-2);color:var(--ink)}
+.wl-foot{border-top:0;padding-top:14px}
+.wl-dots{display:flex;gap:6px;align-items:center}
+.wl-dot{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--line);cursor:pointer}
+.wl-dot.on{background:var(--accent);width:20px;border-radius:999px}
