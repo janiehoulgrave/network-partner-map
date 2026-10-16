@@ -114,8 +114,8 @@ function zoomTo(x,y,k,dur=550){
   k=Math.max(1,Math.min(14,k));
   svg.transition().duration(dur).call(zoom.transform, d3.zoomIdentity.translate(W/2-x*k,H/2-y*k).scale(k));
 }
-function zoomToBox(x0,y0,x1,y1,pad=1.35){
-  const k = Math.min(14, 0.9/Math.max((x1-x0)*pad/VW,(y1-y0)*pad/VH, 1/14));
+function zoomToBox(x0,y0,x1,y1,pad=1.35,maxK=14){
+  const k = Math.min(maxK||14, 0.9/Math.max((x1-x0)*pad/VW,(y1-y0)*pad/VH, 1/14));
   zoomTo((x0+x1)/2,(y0+y1)/2,Math.max(1,k));
 }
 
@@ -158,10 +158,23 @@ function drawPins(){
 }
 function onPin(d){
   if (d.m.length===1){ openCard(d.m[0].c.id); return; }
+  const cs = d.m.map(q=>q.c);
+  // How far apart are they really? Same office or same city => list them instead of zooming.
+  let spread = 0;
+  for (const a of cs) for (const b of cs) spread = Math.max(spread, miles(a.lat,a.lon,b.lat,b.lon));
+  if (spread < 2 || T.k >= 8) { showGroup(cs); return; }
   const xs=d.m.map(q=>q.x), ys=d.m.map(q=>q.y);
-  const w=d3.max(xs)-d3.min(xs), h=d3.max(ys)-d3.min(ys);
-  if (w<0.6 && h<0.6) { zoomTo(d.x,d.y,14); return; }
   zoomToBox(d3.min(xs),d3.min(ys),d3.max(xs),d3.max(ys),2.2);
+}
+/* Partners that share a spot (same office or city): show them in the sidebar */
+function showGroup(cs){
+  closeCard();
+  const cities = [...new Set(cs.map(c=>`${c.city}, ${c.state}`))];
+  const title = cities.length===1 ? `${cs.length} partners in ${cities[0]}` : `${cs.length} partners here`;
+  const sorted = [...cs].sort((a,b)=>a.name.localeCompare(b.name));
+  openSide("group", title, "Same location on the map · pick one to see their card", sorted.map(c=>itemHTML(c,null)).join(""));
+  $("#modeSwitch").hidden = true;
+  highlightIds = new Set(cs.map(c=>c.id)); drawPins();
 }
 
 /* ---------- card ---------- */
@@ -314,7 +327,7 @@ function runSearch(){
     sw.hidden = !loc;
     if (loc){ sw.innerHTML = `Searching names, tags and notes. <button id="toPlace">Search near ${esc(loc.label)} instead</button>`; $("#toPlace").onclick=()=>{forceMode="place";runSearch();}; }
     highlightIds = new Set(tm.map(c=>c.id)); searchMark=null;
-    if (tm.length){ const ps=tm.map(xy); zoomToBox(d3.min(ps,p=>p[0]),d3.min(ps,p=>p[1]),d3.max(ps,p=>p[0]),d3.max(ps,p=>p[1]),1.6); }
+    if (tm.length){ const ps=tm.map(xy); zoomToBox(d3.min(ps,p=>p[0]),d3.min(ps,p=>p[1]),d3.max(ps,p=>p[0]),d3.max(ps,p=>p[1]),1.6,5); }
   }
   drawPins();
 }
@@ -709,7 +722,7 @@ function toast(msg){
 function refresh(){
   tintStates();
   $("#emptyState").hidden = contacts.length>0;
-  if (side.classList.contains("open")){ side.dataset.mode==="all"?showAll():runSearch(); }
+  if (side.classList.contains("open") && side.dataset.mode!=="group"){ side.dataset.mode==="all"?showAll():runSearch(); }
   drawPins();
   if (selectedId && !contacts.some(c=>c.id===selectedId)) closeCard();
 }
