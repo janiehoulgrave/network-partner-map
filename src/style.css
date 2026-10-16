@@ -70,7 +70,7 @@ button{cursor:pointer}
 .state.t3{fill:color-mix(in srgb,var(--accent) 42%,var(--land))}
 .state:hover{fill:var(--land-hover)}
 .state.t1:hover,.state.t2:hover,.state.t3:hover{filter:brightness(.96)}
-.borders{fill:none;stroke:var(--border-state);stroke-linejoin:round;pointer-events:none}
+.borders{fill:none;stroke:var(--border-state);stroke-width:1.2;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
 .pin{cursor:pointer}
 .pin circle.dot{fill:var(--accent);stroke:var(--surface)}
 .pin.sel circle.dot{fill:var(--mark)}
@@ -86,6 +86,8 @@ button{cursor:pointer}
 .pin.cluster circle.dot{fill:var(--surface);stroke:var(--accent)}
 .pin text{fill:var(--accent);font-family:var(--f-body);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .pin.dim{opacity:.28}
+.pin:focus{outline:none}
+.pin:focus-visible circle.dot{stroke:var(--mark);stroke-width:3px}
 .search-mark{fill:none;stroke:var(--mark);stroke-dasharray:3 3;pointer-events:none}
 
 .overlay-tl{position:absolute;left:16px;top:14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:5}

@@ -100,7 +100,7 @@ statesSel.on("pointermove",(ev,d)=>{
   const r = $("#mapwrap").getBoundingClientRect();
   tip.style.left=(ev.clientX-r.left)+"px"; tip.style.top=(ev.clientY-r.top)+"px"; tip.hidden=false;
 }).on("pointerleave",()=>tip.hidden=true)
-  .on("click",(ev,d)=>{ if(ev.defaultPrevented) return; closeCard(); });
+  .on("click",(ev,d)=>{ if(ev.defaultPrevented) return; clearMapSelection(); });
 
 const zoom = d3.zoom().scaleExtent([1,14]).translateExtent([[-PX-W*0.6,-PY-H*0.8],[W+PX+W*0.6,H+PY+H*0.8]])
   .on("zoom",ev=>{T=ev.transform; zl.attr("transform",T); tip.hidden=true; drawPins(); placeCard();});
@@ -146,15 +146,15 @@ function drawPins(){
       const dim = highlightIds && !d.m.some(q=>highlightIds.has(q.c.id));
       const ext = single && !isCompass(d.m[0].c);
       return "pin"+(single?"":" cluster")+(ext?" ext":"")+(sel?" sel":"")+(dim?" dim":"");})
-    .attr("transform",d=>`translate(${d.x},${d.y})`)
+    .attr("transform",d=>`translate(${d.x*T.k+T.x},${d.y*T.k+T.y})`)
     .attr("aria-label",d=>d.m.length===1?d.m[0].c.name:`${d.m.length} partners, zoom in`);
-  g.select("circle.halo").attr("r",d=>d.m.length===1&&d.m[0].c.id===selectedId?16/k:0);
-  g.select("circle.dot").attr("r",d=>(d.m.length===1?(d.m[0].c.id===selectedId?8:6.5):12)/k).attr("stroke-width",2/k);
-  g.select("text").text(d=>d.m.length>1?d.m.length:"").attr("font-size",11/k);
+  g.select("circle.halo").attr("r",d=>d.m.length===1&&d.m[0].c.id===selectedId?16:0);
+  g.select("circle.dot").attr("r",d=>(d.m.length===1?(d.m[0].c.id===selectedId?8:6.5):12)).attr("stroke-width",2);
+  g.select("text").text(d=>d.m.length>1?d.m.length:"").attr("font-size",11);
   g.on("click",(ev,d)=>{ev.stopPropagation(); onPin(d);})
    .on("keydown",(ev,d)=>{ if(ev.key==="Enter"||ev.key===" "){ev.preventDefault(); onPin(d);} });
   d3.select("#markLayer").selectAll("circle").data(searchMark?[searchMark]:[]).join("circle")
-    .attr("class","search-mark").attr("cx",d=>d.x).attr("cy",d=>d.y).attr("r",14/k).attr("stroke-width",2/k);
+    .attr("class","search-mark").attr("cx",d=>d.x*T.k+T.x).attr("cy",d=>d.y*T.k+T.y).attr("r",14).attr("stroke-width",2);
 }
 function onPin(d){
   if (d.m.length===1){ openCard(d.m[0].c.id); return; }
@@ -729,7 +729,12 @@ function refresh(){
 $("#emptyAdd").onclick=()=>openAdd();
 $("#helpBtn").onclick=()=>openWelcome();
 $("#howBtn").onclick=()=>{ $("#userMenu").hidden=true; openWelcome(); };
-svg.on("click.bg",ev=>{ if(ev.target===svg.node()) closeCard(); });
+/* Clicking empty map: close the open card, and close a "partners here" list along with its highlight */
+function clearMapSelection(){
+  closeCard();
+  if (side.dataset.mode==="group"){ closeSide(); highlightIds=null; searchMark=null; drawPins(); }
+}
+svg.on("click.bg",ev=>{ if(ev.defaultPrevented) return; if(ev.target===svg.node() || ev.target.id==="borders") clearMapSelection(); });
 addEventListener("resize",()=>placeCard(true));
 
 /* first sign-in: show the walkthrough once per account (remembered in Firestore, so it follows them across devices) */
